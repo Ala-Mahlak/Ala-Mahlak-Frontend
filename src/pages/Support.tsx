@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Send, Ticket, MessageCircle, Search, Clock } from 'lucide-react';
-import { conversations, tickets, type TicketStatus, type TicketPriority } from '../data/mockData';
+import { type TicketStatus, type TicketPriority } from '../data/mockData';
+import { appQueryKeys, useSupportData } from '../hooks/useAppData';
 
 type Tab = 'chat' | 'tickets';
 
@@ -18,32 +20,47 @@ const ticketPriorityConfig: Record<TicketPriority, { label: string; class: strin
 
 export default function Support() {
   const [tab, setTab] = useState<Tab>('chat');
-  const [activeConv, setActiveConv] = useState(conversations[0].id);
+  const queryClient = useQueryClient();
+  const { data } = useSupportData();
+  const conversations = data?.conversations ?? [];
+  const tickets = data?.tickets ?? [];
+  const [activeConv, setActiveConv] = useState(conversations[0]?.id ?? '1');
   const [message, setMessage] = useState('');
-  const [convos, setConvos] = useState(conversations);
   const [ticketFilter, setTicketFilter] = useState<'all' | TicketStatus>('all');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const currentConv = convos.find(c => c.id === activeConv)!;
+  const currentConv = conversations.find(c => c.id === activeConv);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeConv, convos]);
+  }, [activeConv, conversations]);
+
+  useEffect(() => {
+    if (!currentConv && conversations[0]) {
+      setActiveConv(conversations[0].id);
+    }
+  }, [conversations, currentConv]);
 
   const handleSend = () => {
-    if (!message.trim()) return;
-    setConvos(prev =>
-      prev.map(c =>
-        c.id === activeConv
-          ? {
-              ...c,
-              messages: [...c.messages, { from: 'company', text: message, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }],
-              preview: message,
-              time: 'Just now',
-            }
-          : c
-      )
-    );
+    if (!message.trim() || !currentConv) return;
+
+    queryClient.setQueryData(appQueryKeys.support, (previous: { conversations: typeof conversations; tickets: typeof tickets } | undefined) => {
+      if (!previous) return previous;
+
+      return {
+        ...previous,
+        conversations: previous.conversations.map(conversation =>
+          conversation.id === activeConv
+            ? {
+                ...conversation,
+                messages: [...conversation.messages, { from: 'company', text: message, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }],
+                preview: message,
+                time: 'Just now',
+              }
+            : conversation
+        ),
+      };
+    });
     setMessage('');
   };
 
@@ -122,7 +139,7 @@ export default function Support() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto scrollbar-hide">
-                {convos.map(conv => (
+                {conversations.map(conv => (
                   <button
                     key={conv.id}
                     onClick={() => setActiveConv(conv.id)}

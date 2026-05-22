@@ -33,7 +33,7 @@ export default function Signup() {
     setLoading(true);
     try {
       const res = await registerCompany(form);
-      saveSession(res, form.email);
+      saveSession(res, { name: form.name, email: form.email });
       setSuccess(res.message || 'Account created! Redirecting…');
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err: unknown) {

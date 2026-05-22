@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Check, FileText, CheckCircle2, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getJoinRequests, decideJoinRequest } from '../services/authService';
@@ -28,6 +28,14 @@ export default function AssignDrivers() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const activeCompanyCode = (session?.companyCode ?? companyCode ?? '').trim() || null;
+  const visibleJoinRequests = useMemo(() => {
+    if (!activeCompanyCode) return [];
+
+    const normalizedCompanyCode = activeCompanyCode.trim().toLowerCase();
+    return joinRequests.filter(request => (request.compCode ?? '').trim().toLowerCase() === normalizedCompanyCode);
+  }, [activeCompanyCode, joinRequests]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -45,14 +53,21 @@ export default function AssignDrivers() {
 
     try {
       const requests = await getJoinRequests();
-      setJoinRequests(requests);
-      setCompanyCode(prev => prev ?? (requests.length > 0 ? requests[0].compCode ?? null : prev));
+      if (!activeCompanyCode) {
+        setJoinRequests([]);
+        return;
+      }
+
+      const normalizedCompanyCode = activeCompanyCode.toLowerCase();
+      setJoinRequests(
+        requests.filter(request => (request.compCode ?? '').trim().toLowerCase() === normalizedCompanyCode),
+      );
     } catch (error) {
       setRequestsError(error instanceof Error ? error.message : 'Failed to load pending requests');
     } finally {
       setLoadingRequests(false);
     }
-  }, []);
+  }, [activeCompanyCode]);
 
   const handleDecision = async (requestId: string, decision: 'accept' | 'reject') => {
     setPendingActionId(requestId);
@@ -212,7 +227,7 @@ export default function AssignDrivers() {
         {/* Company Code Card */}
         <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white">
           <p className="text-sm font-medium text-indigo-200 mb-2">Company Code</p>
-          <div className="text-4xl font-bold tracking-widest mb-3">{companyCode ?? session?.companyCode ?? 'No code available'}</div>
+          <div className="text-4xl font-bold tracking-widest mb-3">{activeCompanyCode ?? 'No code available'}</div>
           <p className="text-sm text-indigo-100 mb-4">
             Share this generated company code with drivers so they can request to join your company.
           </p>
@@ -242,7 +257,7 @@ export default function AssignDrivers() {
               <p className="text-sm text-slate-500">Review drivers requesting to join with your company code.</p>
             </div>
             <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              {joinRequests.length}
+              {visibleJoinRequests.length}
             </span>
           </div>
 
@@ -250,11 +265,11 @@ export default function AssignDrivers() {
             <p className="text-sm text-slate-500">Loading pending requests…</p>
           ) : requestsError ? (
             <p className="text-sm text-rose-600">{requestsError}</p>
-          ) : joinRequests.length === 0 ? (
-            <p className="text-sm text-slate-500">No pending driver requests at the moment.</p>
+          ) : visibleJoinRequests.length === 0 ? (
+            <p className="text-sm text-slate-500">No pending driver requests for your company code at the moment.</p>
           ) : (
             <div className="space-y-4">
-              {joinRequests.map(request => (
+              {visibleJoinRequests.map(request => (
                 <div key={request.id} className="rounded-2xl border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>

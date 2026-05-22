@@ -1,30 +1,134 @@
-import { useState } from 'react';
-import { Bell, Mail, Phone, Save, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { Bell, ImagePlus, Loader2, Mail, Save, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { updateCompanyLogo } from '../services/authService';
 
 export default function Profile() {
+  const { session, updateSession } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [savingLogo, setSavingLogo] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const [photoPreview, setPhotoPreview] = useState(session?.profilePhoto ?? '');
   const [form, setForm] = useState({
-    name: 'Admin User',
-    email: 'staff@qa.com',
-    phone: '+1 (555) 000-0000',
-    role: 'Administrator',
+    name: '',
+    email: '',
+    role: '',
   });
+
+  useEffect(() => {
+    setForm({
+      name: session?.name ?? '',
+      email: session?.email ?? '',
+      role: session?.role ?? '',
+    });
+    setPhotoPreview(session?.profilePhoto ?? '');
+  }, [session]);
+
+  const initials = useMemo(() => (form.name || form.email || 'U')
+    .split(' ')
+    .map(part => part[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase(), [form.email, form.name]);
+
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('Failed to read selected image'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLogoError('');
+    setSavingLogo(true);
+
+    try {
+      const preview = await readFileAsDataUrl(file);
+      await updateCompanyLogo({ logoFile: file, removeLogo: false });
+      setPhotoPreview(preview);
+      updateSession({ profilePhoto: preview });
+    } catch (error) {
+      setLogoError(error instanceof Error ? error.message : 'Failed to update profile photo');
+    } finally {
+      setSavingLogo(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setLogoError('');
+    setSavingLogo(true);
+
+    try {
+      await updateCompanyLogo({ removeLogo: true });
+      setPhotoPreview('');
+      updateSession({ profilePhoto: undefined });
+    } catch (error) {
+      setLogoError(error instanceof Error ? error.message : 'Failed to remove profile photo');
+    } finally {
+      setSavingLogo(false);
+    }
+  };
+
+  const handleSaveProfile = () => {
+    setSavingProfile(true);
+    setProfileMessage('');
+    updateSession({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      role: form.role.trim(),
+      profilePhoto: photoPreview || undefined,
+    });
+    setProfileMessage('Profile saved successfully.');
+    setSavingProfile(false);
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-xl font-bold text-white">
-            AU
-          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-xl font-bold text-white"
+          >
+            {photoPreview ? (
+              <img src={photoPreview} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <span>{initials}</span>
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-slate-900/0 transition-colors group-hover:bg-slate-900/35">
+              <ImagePlus size={18} className="opacity-0 transition-opacity group-hover:opacity-100" />
+            </span>
+          </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
-            <p className="text-sm text-slate-500">Manage your account details</p>
+            <p className="text-sm text-slate-500">Manage your account details{session?.companyCode ? ` · ${session.companyCode}` : ''}</p>
           </div>
         </div>
 
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+
+        {logoError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {logoError}
+          </div>
+        )}
+
+        {profileMessage && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {profileMessage}
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Full Name</span>
+            <span className="text-sm font-medium text-slate-700">Company Name</span>
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <UserCircle2 size={16} className="text-slate-400" />
               <input
@@ -48,18 +152,6 @@ export default function Profile() {
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Phone</span>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-              <Phone size={16} className="text-slate-400" />
-              <input
-                value={form.phone}
-                onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full bg-transparent text-sm text-slate-800 outline-none"
-              />
-            </div>
-          </label>
-
-          <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">Role</span>
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <ShieldCheck size={16} className="text-slate-400" />
@@ -72,10 +164,26 @@ export default function Profile() {
           </label>
         </div>
 
-        <button className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
-          <Save size={16} />
-          Save Profile
-        </button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            disabled={savingProfile}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+          >
+            {savingProfile ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {savingProfile ? 'Saving...' : 'Save Profile'}
+          </button>
+          <button
+            type="button"
+            onClick={handleRemovePhoto}
+            disabled={savingLogo}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingLogo ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+            Remove Photo
+          </button>
+        </div>
       </section>
 
       <aside className="space-y-4">

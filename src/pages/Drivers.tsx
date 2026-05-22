@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, UserPlus } from 'lucide-react';
-import { getCompanyDrivers, type CompanyDriver } from '../services/authService';
+import type { CompanyDriver } from '../services/authService';
+import { useCompanyDriversQuery } from '../hooks/useAppData';
 
 const statusConfig = {
   active: { label: 'Active', class: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500 pulse-dot' },
@@ -13,9 +14,7 @@ export default function Drivers() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'offline'>('all');
-  const [drivers, setDrivers] = useState<CompanyDriver[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: drivers = [], isLoading: loading, error } = useCompanyDriversQuery();
 
   const filtered = drivers.filter(d => {
     const matchSearch = [d.name, d.email, d.phoneNumber, d.role, d.compCode]
@@ -38,23 +37,6 @@ export default function Drivers() {
       .join('')
       .slice(0, 2)
       .toUpperCase();
-
-  const loadDrivers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getCompanyDrivers();
-      setDrivers(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load drivers');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadDrivers();
-  }, [loadDrivers]);
 
   return (
     <div className="space-y-5">
@@ -144,7 +126,7 @@ export default function Drivers() {
         <div className="bg-white rounded-2xl p-12 text-center border border-rose-100">
           <div className="text-rose-500 text-4xl mb-3">⚠️</div>
           <div className="text-slate-500 font-medium">Unable to load drivers</div>
-          <div className="text-slate-400 text-sm mt-1">{error}</div>
+          <div className="text-slate-400 text-sm mt-1">{error instanceof Error ? error.message : 'Failed to load drivers'}</div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">

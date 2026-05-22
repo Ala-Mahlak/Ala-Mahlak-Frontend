@@ -48,10 +48,19 @@ export interface AuthResponse {
   compCode?: string;
 }
 
+export interface SessionInfo {
+  name?: string;
+  email: string;
+  role: string;
+  companyCode?: string;
+  profilePhoto?: string;
+}
+
 // ─── Session keys ──────────────────────────────────────────────────────────
 
 const TOKEN_KEY   = 'ala_mahlak_token';
 const COMPANY_KEY = 'ala_mahlak_company';
+const PROFILE_PREFIX = 'ala_mahlak_profile_';
 
 // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
@@ -301,9 +310,9 @@ export function logoutCompany(): Promise<{ message: string }> {
 
 // ─── Session helpers ─────────────────────────────────────────────────────────
 
-export function saveSession(res: AuthResponse, emailFallback?: string) {
+export function saveSession(res: AuthResponse, profile?: Partial<Pick<SessionInfo, 'name' | 'email' | 'profilePhoto'>>) {
   // Handle different response structures
-  const tokenData = res.token || (res as any);
+  const tokenData = res.token ?? (res as unknown as TokenPayload);
   
   if (!tokenData?.accessToken) {
     console.error('Invalid response structure:', res);
@@ -311,12 +320,18 @@ export function saveSession(res: AuthResponse, emailFallback?: string) {
   }
 
   localStorage.setItem(TOKEN_KEY, tokenData.accessToken);
-  const stored = {
-    email: emailFallback ?? '',
+  const existing = getSessionInfo();
+  const profileKey = getProfileStorageKey({ email: profile?.email ?? existing?.email ?? '', companyCode: res.compCode ?? existing?.companyCode });
+  const persistedProfile = getPersistedProfile(profileKey);
+  const stored: SessionInfo = {
+    name: profile?.name ?? persistedProfile?.name ?? existing?.name,
+    email: profile?.email ?? existing?.email ?? '',
     role: tokenData.role || 'user',
     companyCode: res.compCode || undefined,
+    profilePhoto: profile?.profilePhoto ?? persistedProfile?.profilePhoto ?? existing?.profilePhoto,
   };
   localStorage.setItem(COMPANY_KEY, JSON.stringify(stored));
+  persistProfile(stored);
 }
 
 export function clearSession() {
@@ -328,9 +343,30 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-export function getSessionInfo(): { email: string; role: string; companyCode?: string } | null {
+export function getSessionInfo(): SessionInfo | null {
   const raw = localStorage.getItem(COMPANY_KEY);
   return raw ? JSON.parse(raw) : null;
+}
+
+function getProfileStorageKey(session: Pick<SessionInfo, 'email' | 'companyCode'> | null | undefined) {
+  return `${PROFILE_PREFIX}${session?.companyCode ?? session?.email ?? 'unknown'}`;
+}
+
+function persistProfile(session: SessionInfo) {
+  localStorage.setItem(getProfileStorageKey(session), JSON.stringify(session));
+}
+
+function getPersistedProfile(key: string): SessionInfo | null {
+  const raw = localStorage.getItem(key);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export function getPersistedProfileInfo(session: Pick<SessionInfo, 'email' | 'companyCode'> | null | undefined): SessionInfo | null {
+  return getPersistedProfile(getProfileStorageKey(session));
+}
+
+export function savePersistedProfile(session: SessionInfo) {
+  persistProfile(session);
 }
 
 export function isAuthenticated(): boolean {

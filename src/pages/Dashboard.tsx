@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Activity, Car, Clock3, TriangleAlert, Users, Smartphone, Moon, Eye, Utensils } from 'lucide-react';
-import { alerts, drivers } from '../data/mockData';
+import { useDashboardData } from '../hooks/useAppData';
 
 const getAlertIcon = (type: string) => {
   switch (type) {
@@ -62,11 +62,13 @@ const severityConfig = {
   low: { iconBg: 'bg-blue-50 text-blue-500', badge: 'bg-blue-100 text-blue-600' },
 };
 
-const activeDrivers = drivers.filter(driver => driver.status === 'active').slice(0, 2);
-const alertRows = alerts.slice(0, 5);
-
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { data } = useDashboardData();
+  const alerts = data?.alerts ?? [];
+  const drivers = data?.drivers ?? [];
+  const activeDrivers = drivers.filter(driver => driver.status === 'active').slice(0, 2);
+  const alertRows = alerts.slice(0, 5);
 
   return (
     <div className="space-y-6">

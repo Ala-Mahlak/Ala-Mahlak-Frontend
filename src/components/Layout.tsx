@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import { Bell, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': { title: 'Dashboard Overview', subtitle: 'Real-time monitoring of your fleet' },
@@ -18,9 +19,18 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { session } = useAuth();
   const page = PAGE_TITLES[location.pathname] || PAGE_TITLES['/dashboard'];
   const showPageHeading = location.pathname !== '/dashboard';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const displayName = session?.name || 'Account';
+  const displayEmail = session?.email || '';
+  const initials = (displayName || 'A')
+    .split(' ')
+    .map(part => part[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -50,12 +60,16 @@ export default function Layout() {
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
               </button>
               <button onClick={() => navigate('/profile')} className="flex items-center gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-slate-50">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white shadow-sm">
-                  AU
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-slate-900 text-sm font-semibold text-white shadow-sm">
+                  {session?.profilePhoto ? (
+                    <img src={session.profilePhoto} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
                 <div className="leading-tight">
-                  <div className="text-sm font-semibold text-slate-800">Admin User</div>
-                  <div className="text-xs text-slate-500">staff@qa.com</div>
+                  <div className="text-sm font-semibold text-slate-800">{displayName}</div>
+                  <div className="text-xs text-slate-500">{displayEmail}</div>
                 </div>
               </button>
             </div>

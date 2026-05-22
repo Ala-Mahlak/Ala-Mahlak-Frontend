@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Car, UserPlus, MessageCircle, LogOut, X, UserCircle2, Loader2, Building2
 } from 'lucide-react';
@@ -6,7 +7,7 @@ import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import logoAnimation from '../assets/Ala Mahla 1st Logo Animation.gif';
 import { AnimatePresence, motion } from 'framer-motion';
-import { logoutCompany, clearSession } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 
 const navItems = [
@@ -25,19 +26,25 @@ type Props = {
 
 export default function Sidebar({ isOpen = false, onClose }: Props) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loggingOut, setLoggingOut] = useState(false);
+  const { session, logout } = useAuth();
+
+  const displayName = session?.name || session?.email || 'Account';
+  const displayRole = session?.role || 'Administrator';
+  const initials = (displayName || 'A')
+    .split(' ')
+    .map(part => part[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    try {
-      await logoutCompany();
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      clearSession();
-      navigate('/login');
-      setLoggingOut(false);
-    }
+    logout();
+    queryClient.clear();
+    navigate('/login', { replace: true });
+    setLoggingOut(false);
   };
 
   const inner = (
@@ -56,12 +63,16 @@ export default function Sidebar({ isOpen = false, onClose }: Props) {
 
       <div className="border-b border-slate-200 px-4 py-4">
         <button onClick={() => navigate('/profile')} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-left transition-colors hover:bg-slate-100">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
-            AU
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+            {session?.profilePhoto ? (
+              <img src={session.profilePhoto} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-800">Admin User</div>
-            <div className="text-xs text-slate-500">Administrator</div>
+            <div className="truncate text-sm font-semibold text-slate-800">{displayName}</div>
+            <div className="text-xs text-slate-500">{displayRole}</div>
           </div>
         </button>
       </div>

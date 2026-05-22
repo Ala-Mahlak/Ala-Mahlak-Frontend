@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, AlertTriangle, Clock, MapPin, Zap, Smartphone, Moon, Eye, Utensils } from 'lucide-react';
-import { alerts, type AlertSeverity } from '../data/mockData';
+import type { AlertSeverity } from '../data/mockData';
+import { useAlertsData } from '../hooks/useAppData';
 
 const getAlertIcon = (type: string) => {
   switch (type) {
@@ -35,6 +36,7 @@ export default function Alerts() {
   const [search, setSearch] = useState('');
   const [type, setType] = useState('All Types');
   const [severity, setSeverity] = useState<'all' | AlertSeverity>('all');
+  const { data: alerts = [] } = useAlertsData();
 
   const filtered = alerts.filter(a => {
     const matchSearch =

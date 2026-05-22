@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Smartphone, Eye, Moon, Utensils, CheckCircle, MapPin, Clock, Search } from 'lucide-react';
-import { trips as mockTrips, alerts } from '../data/mockData';
-import { getCompanyTrips, type CompanyTrip } from '../services/authService';
+import { useTripMonitoringData, useCompanyTripsQuery } from '../hooks/useAppData';
 
 const getAlertIcon = (type: string) => {
   const iconProps = { size: 20 };
@@ -34,28 +33,13 @@ const statusConfig = {
 export default function TripMonitoring() {
   const [alertSeverity, setAlertSeverity] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [alertStatus, setAlertStatus] = useState('all');
-  const [companyTrips, setCompanyTrips] = useState<CompanyTrip[]>([]);
-  const [tripsLoading, setTripsLoading] = useState(true);
-  const [tripsError, setTripsError] = useState<string | null>(null);
   const [tripFilter, setTripFilter] = useState<'all' | 'active' | 'completed' | 'cancelled'>('all');
   const [tripSearch, setTripSearch] = useState('');
+  const { data: monitoringData } = useTripMonitoringData();
+  const { data: companyTrips = [], isLoading: tripsLoading, error: tripsError } = useCompanyTripsQuery();
 
-  const loadCompanyTrips = useCallback(async () => {
-    setTripsLoading(true);
-    setTripsError(null);
-    try {
-      const response = await getCompanyTrips();
-      setCompanyTrips(response);
-    } catch (err) {
-      setTripsError(err instanceof Error ? err.message : 'Failed to load trips');
-    } finally {
-      setTripsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadCompanyTrips();
-  }, [loadCompanyTrips]);
+  const mockTrips = monitoringData?.trips ?? [];
+  const alerts = monitoringData?.alerts ?? [];
 
   const filteredCompanyTrips = useMemo(() => {
     return companyTrips.filter(t => {
@@ -139,7 +123,7 @@ export default function TripMonitoring() {
           </div>
         ) : tripsError ? (
           <div className="p-8 text-center">
-            <div className="text-red-500 text-sm">{tripsError}</div>
+            <div className="text-red-500 text-sm">{tripsError instanceof Error ? tripsError.message : 'Failed to load trips'}</div>
           </div>
         ) : filteredCompanyTrips.length === 0 ? (
           <div className="p-8 text-center">
