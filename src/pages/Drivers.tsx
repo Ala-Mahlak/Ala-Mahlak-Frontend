@@ -94,26 +94,6 @@ export default function Drivers() {
         {loading ? 'Loading drivers…' : `Showing ${filtered.length} of ${drivers.length} drivers`}
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <div className="text-sm text-slate-500">Total Drivers</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-900">{counts.all}</div>
-          <div className="text-xs mt-1 text-emerald-500">{counts.active} active</div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <div className="text-sm text-slate-500">On Trip</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-900">{counts.active}</div>
-          <div className="text-xs mt-1 text-slate-500">In progress</div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <div className="text-sm text-slate-500">Available</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-900">{counts.offline}</div>
-          <div className="text-xs mt-1 text-slate-500">Ready for assignment</div>
-        </div>
-      </div>
 
       {/* Table list */}
       {loading ? (

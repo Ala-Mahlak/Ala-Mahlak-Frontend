@@ -32,12 +32,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken]     = useState<string | null>(getToken);
-  const [session, setSession] = useState<SessionInfo | null>(() => {
-    const storedSession = getSessionInfo();
-    const persistedProfile = getPersistedProfileInfo(storedSession);
-    return persistedProfile ? { ...storedSession, ...persistedProfile } : storedSession;
+  // Clear any existing session on application startup to ensure starting with the login page
+  useState(() => {
+    clearSession();
   });
+
+  const [token, setToken]     = useState<string | null>(null);
+  const [session, setSession] = useState<SessionInfo | null>(null);
 
   const login = useCallback(async (data: LoginRequest) => {
     const res = await loginCompany(data);

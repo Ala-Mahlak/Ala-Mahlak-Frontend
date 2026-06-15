@@ -7,7 +7,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Companies from './pages/Companies';
 import Drivers from './pages/Drivers';
-import TripMonitoring from './pages/TripMonitoring';
+
 import Alerts from './pages/Alerts';
 import AssignDrivers from './pages/AssignDrivers';
 import DriverDetails from './pages/DriverDetails';
@@ -30,24 +30,26 @@ function RedirectIfAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      {/* Root route: always redirect to login page first to ensure authentication */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
       {/* Public auth routes */}
       <Route path="/login" element={<RedirectIfAuth><Login /></RedirectIfAuth>} />
       <Route path="/signup" element={<RedirectIfAuth><Signup /></RedirectIfAuth>} />
       <Route path="/forgot-password" element={<RedirectIfAuth><ForgotPassword /></RedirectIfAuth>} />
       <Route path="/reset-password" element={<RedirectIfAuth><ResetPassword /></RedirectIfAuth>} />
 
-      {/* Protected app routes */}
-      <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="companies" element={<Companies />} />
-        <Route path="drivers" element={<Drivers />} />
-        <Route path="drivers/:id" element={<DriverDetails />} />
-        <Route path="trips" element={<TripMonitoring />} />
-        <Route path="alerts" element={<Alerts />} />
-        <Route path="assign" element={<AssignDrivers />} />
-        <Route path="support" element={<Support />} />
-        <Route path="profile" element={<Profile />} />
+      {/* Protected app routes via pathless Layout wrapper */}
+      <Route element={<RequireAuth><Layout /></RequireAuth>}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/companies" element={<Companies />} />
+        <Route path="/drivers" element={<Drivers />} />
+        <Route path="/drivers/:id" element={<DriverDetails />} />
+
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/assign" element={<AssignDrivers />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

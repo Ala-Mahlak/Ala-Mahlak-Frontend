@@ -162,7 +162,7 @@ export default function Alerts() {
                         {alert.time}
                       </div>
                       <div className="mt-2">
-                        <button onClick={() => navigate('/trips')} className="text-xs text-blue-500 hover:text-blue-600 font-semibold">
+                        <button onClick={() => navigate('/dashboard')} className="text-xs text-blue-500 hover:text-blue-600 font-semibold">
                           View Trip →
                         </button>
                       </div>

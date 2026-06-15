@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  LayoutDashboard, Users, Car, UserPlus, MessageCircle, LogOut, X, UserCircle2, Loader2, Building2
+  LayoutDashboard, Users, UserPlus, MessageCircle, LogOut, X, UserCircle2, Loader2, Building2
 } from 'lucide-react';
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
@@ -14,7 +14,6 @@ const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
   { path: '/companies', icon: Building2, label: 'Companies' },
   { path: '/drivers', icon: Users, label: 'Drivers' },
-  { path: '/trips', icon: Car, label: 'Trip Monitoring' },
   { path: '/assign', icon: UserPlus, label: 'Assign Drivers' },
   { path: '/support', icon: MessageCircle, label: 'Support', badge: 3 },
 ];

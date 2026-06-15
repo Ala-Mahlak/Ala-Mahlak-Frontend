@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Check, FileText, CheckCircle2, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getJoinRequests, decideJoinRequest } from '../services/authService';
+import { getJoinRequests, decideJoinRequest, addManualDriver } from '../services/authService';
 import type { JoinRequest } from '../services/authService';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function AssignDrivers() {
+  const { addNotification } = useNotifications();
   const [copied, setCopied] = useState(false);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
@@ -20,6 +23,10 @@ export default function AssignDrivers() {
     vehicleId: '',
     status: 'active',
   });
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccess, setAssignSuccess] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleCopy = () => {
     if (!companyCode) return;
@@ -41,10 +48,53 @@ export default function AssignDrivers() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    setFormData({ fullName: '', email: '', phone: '', license: '', vehicleId: '', status: 'active' });
+    setAssignError(null);
+    setAssignSuccess(false);
+
+    if (!formData.fullName.trim()) {
+      setAssignError('Full Name is required');
+      return;
+    }
+    if (!formData.email.trim()) {
+      setAssignError('Email Address is required');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setAssignError('Phone Number is required');
+      return;
+    }
+    if (!activeCompanyCode) {
+      setAssignError('No active company code found. Please ensure you are logged in as a company.');
+      return;
+    }
+
+    setAssignLoading(true);
+    try {
+      const driverName = formData.fullName.trim();
+      await addManualDriver({
+        name: driverName,
+        email: formData.email.trim(),
+        phoneNumber: formData.phone.trim(),
+        compCode: activeCompanyCode,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['company-drivers'] });
+
+      addNotification(
+        'assignment',
+        'New Driver Assigned',
+        `Driver ${driverName} has been manually assigned to the fleet.`
+      );
+
+      setAssignSuccess(true);
+      setFormData({ fullName: '', email: '', phone: '', license: '', vehicleId: '', status: 'active' });
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to assign driver');
+    } finally {
+      setAssignLoading(false);
+    }
   };
 
   const loadJoinRequests = useCallback(async () => {
@@ -59,9 +109,24 @@ export default function AssignDrivers() {
       }
 
       const normalizedCompanyCode = activeCompanyCode.toLowerCase();
-      setJoinRequests(
-        requests.filter(request => (request.compCode ?? '').trim().toLowerCase() === normalizedCompanyCode),
+      const filtered = requests.filter(
+        request => (request.compCode ?? '').trim().toLowerCase() === normalizedCompanyCode
       );
+
+      const normalized = filtered.map(req => {
+        let status = req.status || 'Pending';
+        if (req.approved) {
+          status = 'Approved';
+        } else if (status.toLowerCase() === 'accepted') {
+          status = 'Approved';
+        }
+        return {
+          ...req,
+          status,
+        };
+      });
+
+      setJoinRequests(normalized);
     } catch (error) {
       setRequestsError(error instanceof Error ? error.message : 'Failed to load pending requests');
     } finally {
@@ -72,8 +137,28 @@ export default function AssignDrivers() {
   const handleDecision = async (requestId: string, decision: 'accept' | 'reject') => {
     setPendingActionId(requestId);
     try {
+      const reqInfo = joinRequests.find(r => r.id === requestId);
+      const driverName = reqInfo ? reqInfo.userName : 'A driver';
+
       await decideJoinRequest(requestId, decision);
-      setJoinRequests(prev => prev.filter(request => request.id !== requestId));
+      setJoinRequests(prev =>
+        prev.map(request =>
+          request.id === requestId
+            ? { ...request, status: decision === 'accept' ? 'Approved' : 'Rejected', approved: decision === 'accept' }
+            : request
+        )
+      );
+
+      addNotification(
+        decision === 'accept' ? 'assignment' : 'alert',
+        decision === 'accept' ? 'Join Request Approved' : 'Join Request Rejected',
+        `Driver ${driverName}'s request to join the company was ${decision}ed.`
+      );
+
+      if (decision === 'accept') {
+        // Refresh the drivers list since a new driver was accepted and joined the company
+        await queryClient.invalidateQueries({ queryKey: ['company-drivers'] });
+      }
     } catch (error) {
       console.error('Join request decision failed:', error);
       setRequestsError(error instanceof Error ? error.message : 'Unable to update request status');
@@ -111,6 +196,20 @@ export default function AssignDrivers() {
           <h1 className="text-2xl font-bold text-slate-800 mb-1">Assign Driver</h1>
           <p className="text-sm text-slate-500 mb-8">Add new drivers to your monitoring system</p>
 
+          {assignSuccess && (
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-500" />
+              <span>Driver assigned successfully and saved to drivers data!</span>
+            </div>
+          )}
+
+          {assignError && (
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl flex items-center gap-2">
+              <span className="text-rose-500 font-bold">⚠️</span>
+              <span>{assignError}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Driver Information Section */}
             <div>
@@ -126,7 +225,8 @@ export default function AssignDrivers() {
                     value={formData.fullName}
                     onChange={handleChange}
                     placeholder="John Doe"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                    disabled={assignLoading}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 disabled:bg-slate-50 disabled:text-slate-400"
                   />
                 </div>
 
@@ -140,7 +240,8 @@ export default function AssignDrivers() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="john.doe@example.com"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                    disabled={assignLoading}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 disabled:bg-slate-50 disabled:text-slate-400"
                   />
                 </div>
 
@@ -154,69 +255,31 @@ export default function AssignDrivers() {
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="+1 234-567-8900"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                    disabled={assignLoading}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 disabled:bg-slate-50 disabled:text-slate-400"
                   />
                 </div>
               </div>
             </div>
 
-            {/* License & Vehicle Details Section */}
-            <div className="pt-2">
-              <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-4">License & Vehicle Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    License Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="license"
-                    value={formData.license}
-                    onChange={handleChange}
-                    placeholder="DL1234567B"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Vehicle ID <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="vehicleId"
-                    value={formData.vehicleId}
-                    onChange={handleChange}
-                    placeholder="VH-001"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Initial Status <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 bg-white"
-                  >
-                    <option value="active">Active</option>
-                    <option value="break">On Break</option>
-                    <option value="offline">Offline</option>
-                  </select>
-                </div>
-              </div>
-            </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full mt-8 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+              disabled={assignLoading}
+              className="w-full mt-8 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              <CheckCircle2 size={18} />
-              Assign Driver
+              {assignLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Assigning Driver...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  <span>Assign Driver</span>
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -253,7 +316,7 @@ export default function AssignDrivers() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-bold text-slate-800">Pending Join Requests</h3>
+              <h3 className="font-bold text-slate-800">Join Requests</h3>
               <p className="text-sm text-slate-500">Review drivers requesting to join with your company code.</p>
             </div>
             <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -262,11 +325,11 @@ export default function AssignDrivers() {
           </div>
 
           {loadingRequests ? (
-            <p className="text-sm text-slate-500">Loading pending requests…</p>
+            <p className="text-sm text-slate-500">Loading requests…</p>
           ) : requestsError ? (
             <p className="text-sm text-rose-600">{requestsError}</p>
           ) : visibleJoinRequests.length === 0 ? (
-            <p className="text-sm text-slate-500">No pending driver requests for your company code at the moment.</p>
+            <p className="text-sm text-slate-500">No driver requests for your company code at the moment.</p>
           ) : (
             <div className="space-y-4">
               {visibleJoinRequests.map(request => (
@@ -277,7 +340,15 @@ export default function AssignDrivers() {
                       <p className="text-sm text-slate-500">{request.userEmail}</p>
                       <p className="text-sm text-slate-500 mt-2">{request.userPhoneNumber}</p>
                       <p className="text-xs uppercase tracking-wide text-slate-400 mt-3">Status</p>
-                      <p className="text-sm font-semibold text-slate-700">{request.status}</p>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold mt-1 ${
+                        request.status.toLowerCase() === 'approved' || request.status.toLowerCase() === 'accepted'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : request.status.toLowerCase() === 'rejected'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1).toLowerCase()}
+                      </span>
                     </div>
                     <div className="text-right">
                       <p className="text-xs uppercase tracking-wide text-slate-400">Requested</p>

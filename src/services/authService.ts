@@ -194,26 +194,63 @@ export function getJoinRequests(): Promise<JoinRequest[]> {
   return authenticatedGet<JoinRequest[]>('/companies/join-requests');
 }
 
-export function decideJoinRequest(requestId: string, decision: 'accept' | 'reject'): Promise<{ message: string }> {
-  return authenticatedPost<{ message: string }>('/companies/join-requests/decision', { requestId, decision });
+export function decideJoinRequest(requestId: string | number, decision: 'accept' | 'reject'): Promise<{ message: string }> {
+  return authenticatedPut<{ message: string }>('/companies/join-requests/decision', {
+    requestId: typeof requestId === 'string' ? parseInt(requestId, 10) : requestId,
+    approved: decision === 'accept',
+  });
 }
 
 export function getCompanyDrivers(): Promise<CompanyDriver[]> {
-  return authenticatedGet<CompanyDriver[]>('/companies/drivers');
+  return authenticatedGet<CompanyDriver[]>('/companies/drivers').then(apiDrivers => {
+    const session = getSessionInfo();
+    const companyCode = session?.companyCode;
+    const manualDriversStr = localStorage.getItem('ala_mahlak_manual_drivers');
+    const manualDrivers: CompanyDriver[] = manualDriversStr ? JSON.parse(manualDriversStr) : [];
+
+    const companyManualDrivers = companyCode
+      ? manualDrivers.filter(d => d.compCode === companyCode)
+      : manualDrivers;
+
+    return [...apiDrivers, ...companyManualDrivers];
+  });
+}
+
+export function addManualDriver(driverData: { name: string; email: string; phoneNumber: string; compCode: string }): Promise<CompanyDriver> {
+  const newDriver: CompanyDriver = {
+    id: Date.now(),
+    name: driverData.name,
+    email: driverData.email,
+    phoneNumber: driverData.phoneNumber,
+    compCode: driverData.compCode,
+    role: 'Driver',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  const manualDriversStr = localStorage.getItem('ala_mahlak_manual_drivers');
+  const manualDrivers: CompanyDriver[] = manualDriversStr ? JSON.parse(manualDriversStr) : [];
+  manualDrivers.push(newDriver);
+  localStorage.setItem('ala_mahlak_manual_drivers', JSON.stringify(manualDrivers));
+
+  return Promise.resolve(newDriver);
 }
 
 export interface CompanyTrip {
   id: number;
   driverId: number;
   driverName: string;
-  driverProfilePhoto?: string;
-  startLocation: string;
-  endLocation: string;
+  driverEmail: string;
+  driverPhoneNumber: string;
+  compCode: string;
   startTime: string;
   endTime?: string;
-  status: 'active' | 'completed' | 'cancelled';
-  distance?: number;
-  duration?: number;
+  distanceKm: number;
+  origin: string;
+  destination: string;
+  rating: number;
+  totalAlerts: number;
+  highestSpeedKmH: number;
 }
 
 export function getCompanyTrips(): Promise<CompanyTrip[]> {
