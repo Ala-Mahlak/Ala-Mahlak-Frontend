@@ -10,7 +10,6 @@ import {
   isAdminApproved,
   getToken as getAuthToken,
   type LoginRequest,
-  type AdminLoginRequest,
   type AuthResponse,
   type SessionInfo as StoredSessionInfo,
 } from '../services/authService';

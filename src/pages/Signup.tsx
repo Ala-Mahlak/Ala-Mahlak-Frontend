@@ -55,6 +55,7 @@ export default function Signup() {
         const res = await registerAdmin({
           name: form.name,
           email: form.email,
+          phoneNumber: '',
           password: form.password,
         });
         
