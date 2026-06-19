@@ -1,26 +1,32 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Bell, ImagePlus, Loader2, Mail, Save, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { Bell, ImagePlus, Loader2, Mail, Phone, Save, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { updateCompanyLogo } from '../services/authService';
+import { updateCompanyLogo, updateCompanyProfile, updateAdminProfile } from '../services/authService';
 
 export default function Profile() {
-  const { session, updateSession } = useAuth();
+  const { session, userType, updateSession } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
+  const [profileError, setProfileError] = useState('');
   const [savingLogo, setSavingLogo] = useState(false);
   const [logoError, setLogoError] = useState('');
   const [photoPreview, setPhotoPreview] = useState(session?.profilePhoto ?? '');
   const [form, setForm] = useState({
     name: '',
     email: '',
+    phoneNumber: '',
     role: '',
   });
+
+  const isCompany = userType === 'company';
+  const nameLabel = isCompany ? 'Company Name' : 'Full Name';
 
   useEffect(() => {
     setForm({
       name: session?.name ?? '',
       email: session?.email ?? '',
+      phoneNumber: session?.phoneNumber ?? '',
       role: session?.role ?? '',
     });
     setPhotoPreview(session?.profilePhoto ?? '');
@@ -49,7 +55,18 @@ export default function Profile() {
 
     try {
       const preview = await readFileAsDataUrl(file);
-      await updateCompanyLogo({ logoFile: file, removeLogo: false });
+
+      if (isCompany) {
+        await updateCompanyLogo({ logoFile: file, removeLogo: false });
+      } else {
+        await updateAdminProfile({
+          name: form.name.trim(),
+          email: form.email.trim() || undefined,
+          phoneNumber: form.phoneNumber.trim() || undefined,
+          profilePhoto: file,
+        });
+      }
+
       setPhotoPreview(preview);
       updateSession({ profilePhoto: preview });
     } catch (error) {
@@ -65,7 +82,17 @@ export default function Profile() {
     setSavingLogo(true);
 
     try {
-      await updateCompanyLogo({ removeLogo: true });
+      if (isCompany) {
+        await updateCompanyLogo({ removeLogo: true });
+      } else {
+        await updateAdminProfile({
+          name: form.name.trim(),
+          email: form.email.trim() || undefined,
+          phoneNumber: form.phoneNumber.trim() || undefined,
+          removePhoto: true,
+        });
+      }
+
       setPhotoPreview('');
       updateSession({ profilePhoto: undefined });
     } catch (error) {
@@ -75,17 +102,29 @@ export default function Profile() {
     }
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMessage('');
-    updateSession({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role.trim(),
-      profilePhoto: photoPreview || undefined,
-    });
-    setProfileMessage('Profile saved successfully.');
-    setSavingProfile(false);
+    setProfileError('');
+
+    try {
+      const name = form.name.trim();
+      const email = form.email.trim();
+      const phoneNumber = form.phoneNumber.trim() || undefined;
+
+      if (isCompany) {
+        await updateCompanyProfile({ name, email, phoneNumber });
+      } else {
+        await updateAdminProfile({ name, email, phoneNumber });
+      }
+
+      updateSession({ name, email, phoneNumber, profilePhoto: photoPreview || undefined });
+      setProfileMessage('Profile saved successfully.');
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   return (
@@ -120,6 +159,12 @@ export default function Profile() {
           </div>
         )}
 
+        {profileError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {profileError}
+          </div>
+        )}
+
         {profileMessage && (
           <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {profileMessage}
@@ -128,7 +173,7 @@ export default function Profile() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Company Name</span>
+            <span className="text-sm font-medium text-slate-700">{nameLabel}</span>
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <UserCircle2 size={16} className="text-slate-400" />
               <input
@@ -152,13 +197,25 @@ export default function Profile() {
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Role</span>
+            <span className="text-sm font-medium text-slate-700">Phone Number</span>
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+              <Phone size={16} className="text-slate-400" />
+              <input
+                value={form.phoneNumber}
+                onChange={e => setForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                className="w-full bg-transparent text-sm text-slate-800 outline-none"
+              />
+            </div>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">Role</span>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-3">
               <ShieldCheck size={16} className="text-slate-400" />
               <input
                 value={form.role}
-                onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}
-                className="w-full bg-transparent text-sm text-slate-800 outline-none"
+                readOnly
+                className="w-full bg-transparent text-sm text-slate-500 outline-none"
               />
             </div>
           </label>
@@ -169,7 +226,7 @@ export default function Profile() {
             type="button"
             onClick={handleSaveProfile}
             disabled={savingProfile}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {savingProfile ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {savingProfile ? 'Saving...' : 'Save Profile'}

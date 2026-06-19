@@ -77,10 +77,10 @@ export default function Login() {
           </div>
           <div className="space-y-4">
             {[
-              { icon: '🎯', text: 'Real-time distraction detection' },
-              { icon: '🗺️', text: 'Live trip monitoring & routing' },
-              { icon: '📊', text: 'Comprehensive safety analytics' },
-              { icon: '🔔', text: 'Instant alert notifications' },
+              { icon: '', text: 'Real-time distraction detection' },
+              { icon: '', text: 'Live trip monitoring & routing' },
+              { icon: '', text: 'Comprehensive safety analytics' },
+              { icon: '', text: 'Instant alert notifications' },
             ].map(f => (
               <div key={f.text} className="flex items-center gap-3">
                 <span className="text-xl">{f.icon}</span>
@@ -99,10 +99,6 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
-              <Car size={18} className="text-white" />
-            </div>
-            <span className="text-slate-800 text-xl font-bold">علي مهلك</span>
           </div>
 
           <div className="mb-8">

@@ -21,6 +21,7 @@ interface SessionInfo {
   role: string;
   companyCode?: string;
   profilePhoto?: string;
+  phoneNumber?: string;
 }
 
 interface AuthContextValue {

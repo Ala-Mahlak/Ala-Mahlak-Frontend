@@ -15,6 +15,13 @@ export interface RegisterRequest {
   password: string;
 }
 
+export interface RegisterDriverRequest {
+  name: string;
+  email: string;
+  phoneNumber?: string;
+  password: string;
+}
+
 export interface ForgotPasswordRequest {
   email: string;
 }
@@ -54,6 +61,7 @@ export interface SessionInfo {
   role: string;
   companyCode?: string;
   profilePhoto?: string;
+  phoneNumber?: string;
 }
 
 // ─── Session keys ──────────────────────────────────────────────────────────
@@ -263,6 +271,20 @@ export interface CompanyLogoRequest {
   removeLogo?: boolean;
 }
 
+export interface UpdateCompanyProfileRequest {
+  name: string;
+  email: string;
+  phoneNumber?: string;
+}
+
+export interface UpdateAdminProfileRequest {
+  name: string;
+  email?: string;
+  phoneNumber?: string;
+  profilePhoto?: File | null;
+  removePhoto?: boolean;
+}
+
 export interface CompanyReportQuery {
   startDate?: string;
   endDate?: string;
@@ -280,39 +302,10 @@ export function decideJoinRequest(requestId: string | number, decision: 'accept'
 }
 
 export function getCompanyDrivers(): Promise<CompanyDriver[]> {
-  return authenticatedGet<CompanyDriver[]>('/companies/drivers').then(apiDrivers => {
-    const session = getSessionInfo();
-    const companyCode = session?.companyCode;
-    const manualDriversStr = localStorage.getItem('ala_mahlak_manual_drivers');
-    const manualDrivers: CompanyDriver[] = manualDriversStr ? JSON.parse(manualDriversStr) : [];
-
-    const companyManualDrivers = companyCode
-      ? manualDrivers.filter(d => d.compCode === companyCode)
-      : manualDrivers;
-
-    return [...apiDrivers, ...companyManualDrivers];
-  });
+  return authenticatedGet<CompanyDriver[]>('/companies/drivers');
 }
 
-export function addManualDriver(driverData: { name: string; email: string; phoneNumber: string; compCode: string }): Promise<CompanyDriver> {
-  const newDriver: CompanyDriver = {
-    id: Date.now(),
-    name: driverData.name,
-    email: driverData.email,
-    phoneNumber: driverData.phoneNumber,
-    compCode: driverData.compCode,
-    role: 'Driver',
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  };
 
-  const manualDriversStr = localStorage.getItem('ala_mahlak_manual_drivers');
-  const manualDrivers: CompanyDriver[] = manualDriversStr ? JSON.parse(manualDriversStr) : [];
-  manualDrivers.push(newDriver);
-  localStorage.setItem('ala_mahlak_manual_drivers', JSON.stringify(manualDrivers));
-
-  return Promise.resolve(newDriver);
-}
 
 export interface CompanyTrip {
   id: number;
@@ -381,6 +374,20 @@ export function updateCompanyLogo(data: CompanyLogoRequest): Promise<{ message?:
   return authenticatedPut<{ message?: string }>('/companies/logo', formData, true);
 }
 
+export function updateCompanyProfile(data: UpdateCompanyProfileRequest): Promise<{ message: string }> {
+  return authenticatedPut<{ message: string }>('/companies/profile', data);
+}
+
+export function updateAdminProfile(data: UpdateAdminProfileRequest): Promise<{ message: string }> {
+  const formData = new FormData();
+  formData.append('name', data.name);
+  if (data.email) formData.append('email', data.email);
+  if (data.phoneNumber) formData.append('phoneNumber', data.phoneNumber);
+  if (data.profilePhoto) formData.append('profilePhoto', data.profilePhoto);
+  if (data.removePhoto) formData.append('removePhoto', 'true');
+  return authenticatedPut<{ message: string }>('/auth/admin/profile', formData, true);
+}
+
 export function getCompanyDriverReport(query: CompanyReportQuery): Promise<unknown> {
   const params = new URLSearchParams();
 
@@ -421,6 +428,11 @@ export function resetPassword(data: ResetPasswordRequest): Promise<{ message: st
 /** POST /api/auth/logout */
 export function logoutCompany(): Promise<{ message: string }> {
   return authenticatedPost<{ message: string }>('/auth/logout', {});
+}
+
+/** POST /api/companies/drivers */
+export function registerDriver(data: RegisterDriverRequest): Promise<{ message: string }> {
+  return authenticatedPost<{ message: string }>('/companies/drivers', data);
 }
 
 // ─── Session helpers ─────────────────────────────────────────────────────────
