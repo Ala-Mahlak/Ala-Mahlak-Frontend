@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Car, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import logoAnimation from '../assets/Ala Mahla 1st Logo Animation.gif';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
