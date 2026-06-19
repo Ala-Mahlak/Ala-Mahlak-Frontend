@@ -4,19 +4,18 @@ import {
   LayoutDashboard, Users, UserPlus, MessageCircle, LogOut, X, UserCircle2, Loader2, Building2
 } from 'lucide-react';
 import type { MouseEventHandler } from 'react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import logoAnimation from '../assets/Ala Mahla 1st Logo Animation.gif';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
-
-const navItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { path: '/companies', icon: Building2, label: 'Companies' },
-  { path: '/drivers', icon: Users, label: 'Drivers' },
-  { path: '/assign', icon: UserPlus, label: 'Assign Drivers' },
-  { path: '/support', icon: MessageCircle, label: 'Support', badge: 3 },
-];
+interface NavItem {
+  path: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  adminOnly?: boolean;
+  companyOnly?: boolean;
+}
 
 type Props = {
   isOpen?: boolean;
@@ -27,10 +26,10 @@ export default function Sidebar({ isOpen = false, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [loggingOut, setLoggingOut] = useState(false);
-  const { session, logout } = useAuth();
+  const { userType, session, logout } = useAuth();
 
   const displayName = session?.name || session?.email || 'Account';
-  const displayRole = session?.role || 'Administrator';
+  const displayRole = userType === 'admin' ? 'Administrator' : 'Company';
   const initials = (displayName || 'A')
     .split(' ')
     .map(part => part[0] ?? '')
@@ -45,6 +44,22 @@ export default function Sidebar({ isOpen = false, onClose }: Props) {
     navigate('/login', { replace: true });
     setLoggingOut(false);
   };
+
+  const allNavItems: NavItem[] = [
+    { path: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { path: '/companies', label: 'Companies', icon: Building2, companyOnly: true },
+    { path: '/drivers', label: 'Drivers', icon: Users },
+    { path: '/assign', label: 'Assign Drivers', icon: UserPlus, companyOnly: true },
+    { path: '/support', label: 'Support', icon: MessageCircle, adminOnly: true },
+  ];
+
+  const navItems = useMemo(() => {
+    return allNavItems.filter(item => {
+      if (item.adminOnly && userType !== 'admin') return false;
+      if (item.companyOnly && userType !== 'company') return false;
+      return true;
+    });
+  }, [userType, allNavItems]);
 
   const inner = (
     <>
@@ -77,7 +92,7 @@ export default function Sidebar({ isOpen = false, onClose }: Props) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-hide">
-        {navItems.map(({ path, icon: Icon, label, badge }) => (
+        {navItems.map(({ path, icon: Icon, label }) => (
           <NavLink
             key={path}
             to={path}
@@ -94,13 +109,6 @@ export default function Sidebar({ isOpen = false, onClose }: Props) {
               <>
                 <Icon size={17} className={isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
                 <span className="flex-1">{label}</span>
-                {badge && (
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-rose-500 text-white'
-                  }`}>
-                    {badge}
-                  </span>
-                )}
               </>
             )}
           </NavLink>

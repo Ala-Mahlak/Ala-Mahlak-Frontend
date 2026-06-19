@@ -27,6 +27,14 @@ function RedirectIfAuth({ children }: { children: React.ReactNode }) {
   return isLoggedIn ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
+// Guard: only admins can access support chat
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn, userType } = useAuth();
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (userType !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -48,7 +56,7 @@ export default function App() {
 
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/assign" element={<AssignDrivers />} />
-        <Route path="/support" element={<Support />} />
+        <Route path="/support" element={<AdminRoute><Support /></AdminRoute>} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   alerts,
-  conversations,
   drivers,
-  tickets,
   trips,
 } from '../data/mockData';
 import {
@@ -21,7 +19,6 @@ export const appQueryKeys = {
   dashboard: ['dashboard-data'] as const,
   alerts: ['alerts-data'] as const,
   trips: ['trip-monitoring-data'] as const,
-  support: ['support-data'] as const,
   companyDrivers: ['company-drivers'] as const,
   companyTrips: ['company-trips'] as const,
   companyAdmins: (search: string) => ['company-admins', search] as const,
@@ -33,19 +30,6 @@ type DashboardData = {
   alerts: typeof alerts;
   drivers: typeof drivers;
 };
-
-type SupportData = {
-  conversations: typeof conversations;
-  tickets: typeof tickets;
-};
-
-const cloneSupportData = (): SupportData => ({
-  conversations: conversations.map(conversation => ({
-    ...conversation,
-    messages: conversation.messages.map(message => ({ ...message })),
-  })),
-  tickets: tickets.map(ticket => ({ ...ticket })),
-});
 
 export function useDashboardData() {
   return useQuery<DashboardData>({
@@ -71,15 +55,6 @@ export function useTripMonitoringData() {
     queryFn: async () => ({ trips, alerts }),
     staleTime: Infinity,
     initialData: { trips, alerts },
-  });
-}
-
-export function useSupportData() {
-  return useQuery<SupportData>({
-    queryKey: appQueryKeys.support,
-    queryFn: async () => cloneSupportData(),
-    staleTime: Infinity,
-    initialData: cloneSupportData(),
   });
 }
 

@@ -17,6 +17,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
       },
+      '/hubs': {
+        target: 'https://ala-mahlak.runasp.net',
+        changeOrigin: true,
+        secure: true,
+        ws: true,
+      },
     },
   },
 })

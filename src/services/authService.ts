@@ -140,6 +140,84 @@ function authenticatedDelete<T>(path: string): Promise<T> {
   }).then(r => handleResponse<T>(r));
 }
 
+// ─── Admin authentication ─────────────────────────────────────────────────
+
+/** Response from /api/auth/login (flat, not nested under token) */
+export interface AdminLoginResponse {
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+  role: string;
+  compCode: string | null;
+}
+
+/** Normalize admin flat response to the standard AuthResponse shape */
+function normalizeAdminLoginToAuthResponse(res: AdminLoginResponse): AuthResponse {
+  return {
+    message: 'Admin login successful',
+    token: {
+      accessToken: res.accessToken,
+      accessTokenExpiresAt: res.accessTokenExpiresAt,
+      refreshToken: res.refreshToken,
+      refreshTokenExpiresAt: res.refreshTokenExpiresAt,
+      role: res.role,
+    },
+    compCode: res.compCode ?? undefined,
+  };
+}
+
+/** POST /api/auth/login */
+export function loginAdmin(data: AdminLoginRequest): Promise<AuthResponse> {
+  return post<AdminLoginResponse>('/auth/login', data).then(normalizeAdminLoginToAuthResponse);
+}
+
+/** Check if admin role indicates approved account.
+ *  "User"  = pending approval.
+ *  "Admin" or "Super trabaj  Admin" = approved. */
+export function isAdminApproved(role: string): boolean {
+  return role === 'Admin' || role === 'SuperAdmin';
+}
+
+/** Response from /api/auth/register (also flat) */
+export interface AdminLoginRequest {
+  emailOrPhone: string;
+  password: string;
+}
+
+export interface AdminRegisterRequest {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+}
+
+export interface AdminRegisterResponse {
+  message: string;
+  token: AdminLoginResponse; // same shape
+}
+
+function normalizeAdminRegisterToAuthResponse(res: AdminRegisterResponse): AuthResponse {
+  return {
+    message: res.message,
+    token: {
+      accessToken: res.token.accessToken,
+      accessTokenExpiresAt: res.token.accessTokenExpiresAt,
+      refreshToken: res.token.refreshToken,
+      refreshTokenExpiresAt: res.token.refreshTokenExpiresAt,
+      role: res.token.role,
+    },
+    compCode: res.token.compCode ?? undefined,
+  };
+}
+
+/** POST /api/auth/register */
+export function registerAdmin(data: AdminRegisterRequest): Promise<AuthResponse> {
+  return post<AdminRegisterResponse>('/auth/register', data).then(normalizeAdminRegisterToAuthResponse);
+}
+
+// ─── Driver types ──────────────────────────────────────────────────────────
+
 export type DriverStatus = 'active' | 'break' | 'offline';
 
 export interface CompanyDriver {

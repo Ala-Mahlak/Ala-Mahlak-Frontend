@@ -19,6 +19,7 @@
     "@fullcalendar/multimonth": "^6.1.18",
     "@fullcalendar/react": "^6.1.18",
     "@fullcalendar/timegrid": "^6.1.18",
+    "@microsoft/signalr": "^10.0.0",
     "@mui/icons-material": "^7.1.1",
     "@mui/lab": "^7.0.0-beta.13",
     "@mui/material": "^7.1.2",

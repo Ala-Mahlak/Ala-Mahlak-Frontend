@@ -60,24 +60,6 @@ export interface Ticket {
   status: TicketStatus;
 }
 
-export interface ChatMessage {
-  from: 'driver' | 'company';
-  text: string;
-  time: string;
-}
-
-export interface ChatConversation {
-  id: string;
-  driverInitials: string;
-  driverName: string;
-  driverColor: string;
-  preview: string;
-  time: string;
-  unread: number;
-  online: boolean;
-  messages: ChatMessage[];
-}
-
 export interface PendingDriver {
   id: string;
   name: string;
@@ -199,40 +181,6 @@ export const tickets: Ticket[] = [
     id: '#TKT-1244', driverInitials: 'EB', driverName: 'Emily Brown', driverColor: '#f59e0b',
     title: 'Audio alert volume too low', date: '3 days ago',
     priority: 'medium', status: 'resolved',
-  },
-];
-
-export const conversations: ChatConversation[] = [
-  {
-    id: '1', driverInitials: 'JS', driverName: 'John Smith', driverColor: '#4F7DF3',
-    preview: 'Camera not working properly on route...', time: '2 min ago', unread: 1, online: true,
-    messages: [
-      { from: 'driver', text: "Hi, I'm having issues with the camera system. It keeps showing an error.", time: '10:45 AM' },
-      { from: 'company', text: "Hello John! Can you describe what the error message says?", time: '10:46 AM' },
-      { from: 'driver', text: '"Camera Connection Lost" appears every 15 minutes during my route.', time: '10:48 AM' },
-      { from: 'company', text: 'Thank you for the details. Let me check your vehicle\'s connection. This might be a loose cable. I\'ll send a technician.', time: '10:50 AM' },
-      { from: 'driver', text: 'Sounds good, thank you!', time: '10:52 AM' },
-    ],
-  },
-  {
-    id: '2', driverInitials: 'MD', driverName: 'Mike Davis', driverColor: '#10b981',
-    preview: 'Question about break policies...', time: '1 hour ago', unread: 0, online: true,
-    messages: [
-      { from: 'driver', text: 'Hi, I have a question about the mandatory break policy after 4 hours.', time: '9:45 AM' },
-      { from: 'company', text: 'Sure, Mike! According to policy, you must take a 30-minute break every 4 hours of driving.', time: '9:47 AM' },
-      { from: 'driver', text: 'Got it. What if my route only has 3.5 hours left?', time: '9:50 AM' },
-      { from: 'company', text: 'In that case you can complete the route. The policy resets each day. You\'re good to go!', time: '9:52 AM' },
-    ],
-  },
-  {
-    id: '3', driverInitials: 'EB', driverName: 'Emily Brown', driverColor: '#f59e0b',
-    preview: 'Thanks for the help!', time: '3 hours ago', unread: 0, online: false,
-    messages: [
-      { from: 'driver', text: 'My app keeps crashing when I start a new trip.', time: '7:30 AM' },
-      { from: 'company', text: 'Please try clearing the app cache and restarting. If it persists, reinstall.', time: '7:35 AM' },
-      { from: 'driver', text: 'The cache clear worked! Thanks for the help!', time: '7:45 AM' },
-      { from: 'company', text: 'Glad to help, Emily! Let us know if anything else comes up.', time: '7:46 AM' },
-    ],
   },
 ];
 

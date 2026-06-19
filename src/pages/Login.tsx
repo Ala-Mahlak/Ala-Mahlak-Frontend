@@ -5,25 +5,39 @@ import logoAnimation from '../assets/Ala Mahla 1st Logo Animation.gif';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
+type LoginMode = 'company' | 'admin';
+
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginAdmin } = useAuth();
 
+  const [mode, setMode] = useState<LoginMode>('company');
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [approvalNotice, setApprovalNotice] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setApprovalNotice(false);
     setLoading(true);
     try {
-      await login({ email, password });
+      if (mode === 'company') {
+        await login({ email, password });
+      } else {
+        await loginAdmin({ email, password });
+      }
       navigate('/dashboard');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      const errMsg = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      if (errMsg.toLowerCase().includes('pending approval')) {
+        setApprovalNotice(true);
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,9 +106,48 @@ export default function Login() {
           </div>
 
           <div className="mb-8">
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-1 p-1 bg-slate-200/50 rounded-xl mb-6">
+              <button
+                type="button"
+                onClick={() => { setMode('company'); setError(''); setApprovalNotice(false); }}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'company'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Company
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('admin'); setError(''); setApprovalNotice(false); }}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'admin'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Admin
+              </button>
+            </div>
+
             <h1 className="text-2xl font-bold text-slate-800">Welcome back</h1>
-            <p className="text-slate-500 mt-1 text-sm">Sign in to your company account</p>
+            <p className="text-slate-500 mt-1 text-sm">
+              Sign in to your {mode === 'company' ? 'company' : 'admin'} account
+            </p>
           </div>
+
+          {approvalNotice && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm"
+            >
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span>Your admin account is pending approval. Please wait for a SuperAdmin to approve your account.</span>
+            </motion.div>
+          )}
 
           {error && (
             <motion.div
@@ -114,7 +167,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="company@example.com"
+                placeholder={mode === 'company' ? 'company@example.com' : 'admin@example.com'}
                 required
                 disabled={loading}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition disabled:opacity-60"
@@ -167,7 +220,7 @@ export default function Login() {
                   Signing in…
                 </>
               ) : (
-                'Sign In to Dashboard'
+                mode === 'company' ? 'Sign In to Dashboard' : 'Sign In as Admin'
               )}
             </button>
           </form>
